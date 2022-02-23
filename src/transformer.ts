@@ -1,13 +1,12 @@
 import ts = require('typescript');
 
 import {
-  SupportedTypes, align,
-  getTypeSizeInBytes
-} from './utils/type';
-import {
+  createEffectAddress,
   createReadBy1Byte, createReadBy2Byte, createReadBy4Byte,
   createWriteBy1Byte, createWriteBy2Byte, createWriteBy4Byte
 } from './utils/factory';
+import { calcLayout } from './utils/layout';
+import { getInterfaceOrTypeAliesName } from './utils/ast';
 
 export function createTransformer (program: ts.Program) {
   const checker = program.getTypeChecker();
@@ -25,28 +24,16 @@ export function createTransformer (program: ts.Program) {
           const type = checker.getTypeAtLocation(typeArguments![0]!);
           const properties = checker.getPropertiesOfType(type);
 
-          const structName = (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Interface ? type.symbol.escapedName : (type.aliasSymbol?.escapedName ?? type.symbol.escapedName);
+          const structName = getInterfaceOrTypeAliesName(type as ts.ObjectType);
 
           console.log('Struct name', structName, type);
 
-          let offset = 0;
-          let totalSize = 0;
+          // TODO: check when symbol.valueDeclaration can be undefined
+          const { size } = calcLayout(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!));
 
-          properties.forEach(v => {
-            const fieldName = v.escapedName;
-            const type = checker.getTypeOfSymbolAtLocation(v, v.valueDeclaration!);
-            const typeName = type.aliasSymbol?.escapedName;
-            const fieldSize = getTypeSizeInBytes(typeName as SupportedTypes);
+          console.log('total size', size);
 
-            console.log(`${fieldName}: ${typeName} - start at ${offset} size ${fieldSize} bytes`);
-            offset += align(fieldSize, 4);
-          });
-
-          totalSize = align(offset, 4);
-
-          console.log('total size', totalSize);
-
-          return ts.factory.createNumericLiteral(totalSize);
+          return ts.factory.createNumericLiteral(size);
         }
 
         if (calledFunctionName === 'readValue') {
@@ -54,44 +41,30 @@ export function createTransformer (program: ts.Program) {
 
           const type = checker.getTypeAtLocation(typeArguments[0]!);
 
-          const structName = (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Interface ? type.symbol.escapedName : (type.aliasSymbol?.escapedName ?? type.symbol.escapedName);
+          const structName = getInterfaceOrTypeAliesName(type as ts.ObjectType);
 
           console.log('readValue Struct name', structName);
 
-          let offset = 0;
-          let totalSize = 0;
-
           const properties = checker.getPropertiesOfType(type);
 
-          const offsetMap = new Map();
-          properties.forEach(v => {
-            const fieldName = v.escapedName;
-            const type = checker.getTypeOfSymbolAtLocation(v, v.valueDeclaration!);
-            const typeName = type.aliasSymbol?.escapedName;
-            const fieldSize = getTypeSizeInBytes(typeName as SupportedTypes);
-
-            offsetMap.set(fieldName, { offset, size: fieldSize });
-
-            offset += align(fieldSize, 4);
-          });
-
-          totalSize = align(offset, 4);
+          // TODO: check when symbol.valueDeclaration can be undefined
+          const { layout, size } = calcLayout(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!));
 
           const fieldName = (node.arguments[2] as ts.StringLiteral).text;
+          const fieldData = layout.get(fieldName);
 
-          if (!offsetMap.has(fieldName)) {
+          if (!fieldData) {
             console.warn(`field ${fieldName} doesnt exist in sctruct ${structName}`);
             return node;
           }
 
-          const fieldData = offsetMap.get(fieldName);
           const bufferType = checker.getTypeAtLocation(node.arguments[0]!);
           const bufferTypeName = bufferType.symbol.escapedName;
 
           console.log('bufferTypeName', bufferTypeName);
 
           if (bufferTypeName === 'Int8Array' || bufferTypeName === 'Uint8Array') {
-            const transformedNode = createReadBy1Byte(node.arguments[0]!, node.arguments[1]!, totalSize, fieldData);
+            const transformedNode = createReadBy1Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData);
 
             if (!transformedNode) {
               console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
@@ -100,7 +73,7 @@ export function createTransformer (program: ts.Program) {
 
             return transformedNode;
           } if (bufferTypeName === 'Int16Array' || bufferTypeName === 'Uint16Array') {
-            const transformedNode = createReadBy2Byte(node.arguments[0]!, node.arguments[1]!, totalSize, fieldData);
+            const transformedNode = createReadBy2Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData);
 
             if (!transformedNode) {
               console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
@@ -109,7 +82,7 @@ export function createTransformer (program: ts.Program) {
 
             return transformedNode;
           } if (bufferTypeName === 'Int32Array' || bufferTypeName === 'Uint32Array') {
-            const transformedNode = createReadBy4Byte(node.arguments[0]!, node.arguments[1]!, totalSize, fieldData);
+            const transformedNode = createReadBy4Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData);
 
             if (!transformedNode) {
               console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
@@ -118,7 +91,7 @@ export function createTransformer (program: ts.Program) {
 
             return transformedNode;
           } if (bufferTypeName === 'Float32Array') {
-            const transformedNode = createReadBy4Byte(node.arguments[0]!, node.arguments[1]!, totalSize, fieldData);
+            const transformedNode = createReadBy4Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData);
 
             if (!transformedNode) {
               console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
@@ -134,42 +107,27 @@ export function createTransformer (program: ts.Program) {
         if (calledFunctionName === 'writeValue') {
           const typeArguments = node.typeArguments!;
           const type = checker.getTypeAtLocation(typeArguments[0]!);
-          const structName = (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Interface ? type.symbol.escapedName : (type.aliasSymbol?.escapedName ?? type.symbol.escapedName);
+          const structName = getInterfaceOrTypeAliesName(type as ts.ObjectType);
 
           console.log('writeValue Struct name', structName);
 
-          let offset = 0;
-          let totalSize = 0;
-
           const properties = checker.getPropertiesOfType(type);
 
-          const offsetMap = new Map();
-          properties.forEach(v => {
-            const fieldName = v.escapedName;
-            const type = checker.getTypeOfSymbolAtLocation(v, v.valueDeclaration!);
-            const typeName = type.aliasSymbol?.escapedName;
-            const fieldSize = getTypeSizeInBytes(typeName as SupportedTypes);
-
-            offsetMap.set(fieldName, { offset, size: fieldSize });
-
-            offset += align(fieldSize, 4);
-          });
-
-          totalSize = align(offset, 4);
+          const { layout, size } = calcLayout(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!));
 
           const fieldName = (node.arguments[2] as ts.StringLiteral)?.text;
+          const fieldData = layout.get(fieldName);
 
-          if (!offsetMap.has(fieldName)) {
+          if (!fieldData) {
             console.warn(`field ${fieldName} doesnt exist in sctruct ${structName}`);
             return node;
           }
 
-          const fieldData = offsetMap.get(fieldName);
           const bufferType = checker.getTypeAtLocation(node.arguments[0]!);
           const bufferTypeName = bufferType.symbol.escapedName;
 
           if (bufferTypeName === 'Int8Array' || bufferTypeName === 'Uint8Array') {
-            const transformedNode = createWriteBy1Byte(node.arguments[0]!, node.arguments[1]!, totalSize, fieldData, node.arguments[3]!);
+            const transformedNode = createWriteBy1Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData, node.arguments[3]!);
 
             if (!transformedNode) {
               console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
@@ -178,7 +136,7 @@ export function createTransformer (program: ts.Program) {
 
             return transformedNode;
           } if (bufferTypeName === 'Int16Array' || bufferTypeName === 'Uint16Array') {
-            const transformedNode = createWriteBy2Byte(node.arguments[0]!, node.arguments[1]!, totalSize, fieldData, node.arguments[3]!);
+            const transformedNode = createWriteBy2Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData, node.arguments[3]!);
 
             if (!transformedNode) {
               console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
@@ -187,7 +145,7 @@ export function createTransformer (program: ts.Program) {
 
             return transformedNode;
           } if (bufferTypeName === 'Int32Array' || bufferTypeName === 'Uint32Array') {
-            const transformedNode = createWriteBy4Byte(node.arguments[0]!, node.arguments[1]!, totalSize, fieldData, node.arguments[3]!);
+            const transformedNode = createWriteBy4Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData, node.arguments[3]!);
 
             if (!transformedNode) {
               console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
@@ -196,7 +154,7 @@ export function createTransformer (program: ts.Program) {
 
             return transformedNode;
           } if (bufferTypeName === 'Float32Array') {
-            const transformedNode = createWriteBy4Byte(node.arguments[0]!, node.arguments[1]!, totalSize, fieldData, node.arguments[3]!);
+            const transformedNode = createWriteBy4Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData, node.arguments[3]!);
 
             if (!transformedNode) {
               console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
@@ -207,6 +165,38 @@ export function createTransformer (program: ts.Program) {
           } else {
             return node;
           }
+        }
+
+        if (calledFunctionName === 'loadEffectiveAddress') {
+          const typeArguments = node.typeArguments!;
+          const funcArguments = node.arguments;
+          const structTypeArg = typeArguments[0]!;
+
+          const type = checker.getTypeAtLocation(structTypeArg);
+
+          const structName = getInterfaceOrTypeAliesName(type as ts.ObjectType);
+
+          console.log('readValueStruct Struct name', structName);
+
+          const properties = checker.getPropertiesOfType(type);
+
+          // TODO: check when symbol.valueDeclaration can be undefined
+          const { layout, size } = calcLayout(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!));
+
+          const address = funcArguments[0]!;
+          const element = funcArguments.length === 3 ? funcArguments[1]! : ts.factory.createNumericLiteral(0);
+          const field = funcArguments.length === 3 ? funcArguments[2]! : funcArguments[1]!;
+
+
+          const fieldName = (field as ts.StringLiteral).text;
+          const fieldData = layout.get(fieldName);
+
+          if (!fieldData) {
+            console.warn(`field ${fieldName} doesn't exist in sctruct ${structName}`);
+            return node;
+          }
+
+          return createEffectAddress(address, element, size, fieldData.offset);
         }
       }
 

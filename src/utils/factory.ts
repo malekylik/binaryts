@@ -1,4 +1,5 @@
 import ts = require('typescript');
+import { getNumberFromNumericLiteral, isExpressionNumbericLiteral } from './ast';
 
 type FieldData = {
   size: number;
@@ -386,4 +387,61 @@ export function createWriteBy4Byte(bufferExp: ts.Expression, elementIndxExp: ts.
   }
 
   return undefined;
+}
+
+export function createEffectAddress(address: ts.Expression, element: ts.Expression, structSize: number, fieldOffset: number) {
+  if (isExpressionNumbericLiteral(element)) {
+    element = ts.factory.createNumericLiteral(getNumberFromNumericLiteral(element) * structSize);
+  } else {
+    element = ts.factory.createBinaryExpression(
+      element,
+      ts.factory.createToken(ts.SyntaxKind.AsteriskToken),
+      ts.factory.createNumericLiteral(structSize)
+    );
+  }
+
+  if (isExpressionNumbericLiteral(address)) {
+    const resultOffset = getNumberFromNumericLiteral(address) + fieldOffset;
+
+    if (isExpressionNumbericLiteral(element)) {
+      return ts.factory.createNumericLiteral(resultOffset + getNumberFromNumericLiteral(element));
+    }
+
+    if (resultOffset === 0) {
+      return element;
+    }
+
+    return ts.factory.createBinaryExpression(
+      ts.factory.createNumericLiteral(resultOffset),
+      ts.factory.createToken(ts.SyntaxKind.PlusToken),
+      element
+    );
+  }
+
+  if (isExpressionNumbericLiteral(element)) {
+    const resultOffset = getNumberFromNumericLiteral(element) + fieldOffset;
+
+    if (resultOffset === 0) {
+      return address;
+    }
+
+    return ts.factory.createBinaryExpression(
+      address,
+      ts.factory.createToken(ts.SyntaxKind.PlusToken),
+      ts.factory.createNumericLiteral(resultOffset)
+    );
+  }
+
+  const elementWithFieldOffset = fieldOffset !== 0 ?
+    ts.factory.createBinaryExpression(
+      element,
+      ts.factory.createToken(ts.SyntaxKind.PlusToken),
+      ts.factory.createNumericLiteral(fieldOffset)
+    ) : element;
+
+  return ts.factory.createBinaryExpression(
+    address,
+    ts.factory.createToken(ts.SyntaxKind.PlusToken),
+    elementWithFieldOffset
+  );
 }

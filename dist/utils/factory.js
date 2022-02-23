@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createWriteBy4Byte = exports.createWriteBy2Byte = exports.createWriteBy1Byte = exports.createReadBy4Byte = exports.createReadBy2Byte = exports.createReadBy1Byte = exports.createCommanNode = exports.createLogicalAnd = exports.createRightShiftedExpression = exports.createLeftShiftedExpression = exports.createBufferAccessFrom4ByteNode = exports.createBufferAccessFrom2ByteNode = exports.createBufferAccessFrom1ByteNode = exports.createStructReadOffsetNode = void 0;
+exports.createEffectAddress = exports.createWriteBy4Byte = exports.createWriteBy2Byte = exports.createWriteBy1Byte = exports.createReadBy4Byte = exports.createReadBy2Byte = exports.createReadBy1Byte = exports.createCommanNode = exports.createLogicalAnd = exports.createRightShiftedExpression = exports.createLeftShiftedExpression = exports.createBufferAccessFrom4ByteNode = exports.createBufferAccessFrom2ByteNode = exports.createBufferAccessFrom1ByteNode = exports.createStructReadOffsetNode = void 0;
 const ts = require("typescript");
+const ast_1 = require("./ast");
 function createStructReadOffsetNode(structSize, elementIndxExp, fieldOffset) {
     const structOffsetNode = ts.factory.createBinaryExpression(ts.factory.createNumericLiteral(structSize), ts.factory.createToken(ts.SyntaxKind.AsteriskToken), elementIndxExp);
     return ts.factory.createBinaryExpression(structOffsetNode, ts.factory.createToken(ts.SyntaxKind.PlusToken), ts.factory.createNumericLiteral(fieldOffset));
@@ -121,3 +122,32 @@ function createWriteBy4Byte(bufferExp, elementIndxExp, structSize, fieldData, va
     return undefined;
 }
 exports.createWriteBy4Byte = createWriteBy4Byte;
+function createEffectAddress(address, element, structSize, fieldOffset) {
+    if ((0, ast_1.isExpressionNumbericLiteral)(element)) {
+        element = ts.factory.createNumericLiteral((0, ast_1.getNumberFromNumericLiteral)(element) * structSize);
+    }
+    else {
+        element = ts.factory.createBinaryExpression(element, ts.factory.createToken(ts.SyntaxKind.AsteriskToken), ts.factory.createNumericLiteral(structSize));
+    }
+    if ((0, ast_1.isExpressionNumbericLiteral)(address)) {
+        const resultOffset = (0, ast_1.getNumberFromNumericLiteral)(address) + fieldOffset;
+        if ((0, ast_1.isExpressionNumbericLiteral)(element)) {
+            return ts.factory.createNumericLiteral(resultOffset + (0, ast_1.getNumberFromNumericLiteral)(element));
+        }
+        if (resultOffset === 0) {
+            return element;
+        }
+        return ts.factory.createBinaryExpression(ts.factory.createNumericLiteral(resultOffset), ts.factory.createToken(ts.SyntaxKind.PlusToken), element);
+    }
+    if ((0, ast_1.isExpressionNumbericLiteral)(element)) {
+        const resultOffset = (0, ast_1.getNumberFromNumericLiteral)(element) + fieldOffset;
+        if (resultOffset === 0) {
+            return address;
+        }
+        return ts.factory.createBinaryExpression(address, ts.factory.createToken(ts.SyntaxKind.PlusToken), ts.factory.createNumericLiteral(resultOffset));
+    }
+    const elementWithFieldOffset = fieldOffset !== 0 ?
+        ts.factory.createBinaryExpression(element, ts.factory.createToken(ts.SyntaxKind.PlusToken), ts.factory.createNumericLiteral(fieldOffset)) : element;
+    return ts.factory.createBinaryExpression(address, ts.factory.createToken(ts.SyntaxKind.PlusToken), elementWithFieldOffset);
+}
+exports.createEffectAddress = createEffectAddress;
