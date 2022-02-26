@@ -3,7 +3,7 @@ import ts = require('typescript');
 import {
   createEffectAddress,
   createReadBy1Byte, createReadBy2Byte, createReadBy4Byte,
-  createWriteBy1Byte, createWriteBy2Byte, createWriteBy4Byte
+  createWriteBy1Byte, createWriteBy2Byte, createWriteBy4Byte,
 } from './utils/factory';
 import { calcLayout } from './utils/layout';
 import { getInterfaceOrTypeAliesName } from './utils/ast';
@@ -26,7 +26,7 @@ export function createTransformer (program: ts.Program) {
 
           const structName = getInterfaceOrTypeAliesName(type as ts.ObjectType);
 
-          console.log('Struct name', structName, type);
+          console.log('Struct name', structName, properties);
 
           // TODO: check when symbol.valueDeclaration can be undefined
           const { size } = calcLayout(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!));
@@ -38,9 +38,15 @@ export function createTransformer (program: ts.Program) {
 
         if (calledFunctionName === 'readValue') {
           const typeArguments = node.typeArguments!;
+          const structType = typeArguments[0]!;
 
-          const type = checker.getTypeAtLocation(typeArguments[0]!);
+          const funcArguments = node.arguments;
+          const buffer = funcArguments[0]!;
+          const address = ts.factory.createNumericLiteral(0);
+          const element = funcArguments[1]!;
+          const field = funcArguments[2]!;
 
+          const type = checker.getTypeAtLocation(structType);
           const structName = getInterfaceOrTypeAliesName(type as ts.ObjectType);
 
           console.log('readValue Struct name', structName);
@@ -50,7 +56,7 @@ export function createTransformer (program: ts.Program) {
           // TODO: check when symbol.valueDeclaration can be undefined
           const { layout, size } = calcLayout(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!));
 
-          const fieldName = (node.arguments[2] as ts.StringLiteral).text;
+          const fieldName = (field as ts.StringLiteral).text;
           const fieldData = layout.get(fieldName);
 
           if (!fieldData) {
@@ -58,55 +64,46 @@ export function createTransformer (program: ts.Program) {
             return node;
           }
 
-          const bufferType = checker.getTypeAtLocation(node.arguments[0]!);
+          const bufferType = checker.getTypeAtLocation(buffer);
           const bufferTypeName = bufferType.symbol.escapedName;
 
           console.log('bufferTypeName', bufferTypeName);
 
+          let transformedNode: ts.Node | undefined;
+
           if (bufferTypeName === 'Int8Array' || bufferTypeName === 'Uint8Array') {
-            const transformedNode = createReadBy1Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData);
-
-            if (!transformedNode) {
-              console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
-              return node;
-            }
-
-            return transformedNode;
-          } if (bufferTypeName === 'Int16Array' || bufferTypeName === 'Uint16Array') {
-            const transformedNode = createReadBy2Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData);
-
-            if (!transformedNode) {
-              console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
-              return node;
-            }
-
-            return transformedNode;
-          } if (bufferTypeName === 'Int32Array' || bufferTypeName === 'Uint32Array') {
-            const transformedNode = createReadBy4Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData);
-
-            if (!transformedNode) {
-              console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
-              return node;
-            }
-
-            return transformedNode;
-          } if (bufferTypeName === 'Float32Array') {
-            const transformedNode = createReadBy4Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData);
-
-            if (!transformedNode) {
-              console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
-              return node;
-            }
-
-            return transformedNode;
+            transformedNode = createReadBy1Byte(buffer, address, element, size, fieldData);
+          } else if (bufferTypeName === 'Int16Array' || bufferTypeName === 'Uint16Array') {
+            transformedNode = createReadBy2Byte(buffer, address, element, size, fieldData);
+          } else if (bufferTypeName === 'Int32Array' || bufferTypeName === 'Uint32Array') {
+            transformedNode = createReadBy4Byte(buffer, address, element, size, fieldData);
+          } else if (bufferTypeName === 'Float32Array') {
+            transformedNode = createReadBy4Byte(buffer, address, element, size, fieldData);
           } else {
+            console.warn(`Unknow buffer type ${bufferType}. Return original node`);
             return node;
           }
+
+          if (!transformedNode) {
+            console.warn(`Unable to transform node for ${fieldName} in sctruct ${structName} with buffer type ${bufferTypeName}. Return original node`);
+            return node;
+          }
+
+          return transformedNode;
         }
 
         if (calledFunctionName === 'writeValue') {
           const typeArguments = node.typeArguments!;
-          const type = checker.getTypeAtLocation(typeArguments[0]!);
+          const structType = typeArguments[0]!;
+
+          const funcArguments = node.arguments;
+          const buffer = funcArguments[0]!;
+          const address = ts.factory.createNumericLiteral(0);
+          const element = funcArguments[1]!;
+          const field = funcArguments[2]!;
+          const value = node.arguments[3]!;
+
+          const type = checker.getTypeAtLocation(structType);
           const structName = getInterfaceOrTypeAliesName(type as ts.ObjectType);
 
           console.log('writeValue Struct name', structName);
@@ -115,7 +112,7 @@ export function createTransformer (program: ts.Program) {
 
           const { layout, size } = calcLayout(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!));
 
-          const fieldName = (node.arguments[2] as ts.StringLiteral)?.text;
+          const fieldName = (field as ts.StringLiteral)?.text;
           const fieldData = layout.get(fieldName);
 
           if (!fieldData) {
@@ -123,57 +120,41 @@ export function createTransformer (program: ts.Program) {
             return node;
           }
 
-          const bufferType = checker.getTypeAtLocation(node.arguments[0]!);
+          const bufferType = checker.getTypeAtLocation(buffer);
           const bufferTypeName = bufferType.symbol.escapedName;
 
+          let transformedNode: ts.Node | undefined;
+
           if (bufferTypeName === 'Int8Array' || bufferTypeName === 'Uint8Array') {
-            const transformedNode = createWriteBy1Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData, node.arguments[3]!);
-
-            if (!transformedNode) {
-              console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
-              return node;
-            }
-
-            return transformedNode;
-          } if (bufferTypeName === 'Int16Array' || bufferTypeName === 'Uint16Array') {
-            const transformedNode = createWriteBy2Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData, node.arguments[3]!);
-
-            if (!transformedNode) {
-              console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
-              return node;
-            }
-
-            return transformedNode;
-          } if (bufferTypeName === 'Int32Array' || bufferTypeName === 'Uint32Array') {
-            const transformedNode = createWriteBy4Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData, node.arguments[3]!);
-
-            if (!transformedNode) {
-              console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
-              return node;
-            }
-
-            return transformedNode;
-          } if (bufferTypeName === 'Float32Array') {
-            const transformedNode = createWriteBy4Byte(node.arguments[0]!, node.arguments[1]!, size, fieldData, node.arguments[3]!);
-
-            if (!transformedNode) {
-              console.warn(`Unsupported size ${fieldData.size} for ${fieldName} in sctruct ${structName}`);
-              return node;
-            }
-
-            return transformedNode;
+            transformedNode = createWriteBy1Byte(buffer, address, element, size, fieldData, value);
+          } else if (bufferTypeName === 'Int16Array' || bufferTypeName === 'Uint16Array') {
+            transformedNode = createWriteBy2Byte(buffer, address, element, size, fieldData, value);
+          } else if (bufferTypeName === 'Int32Array' || bufferTypeName === 'Uint32Array') {
+            transformedNode = createWriteBy4Byte(buffer, address, element, size, fieldData, value);
+          } else if (bufferTypeName === 'Float32Array') {
+            transformedNode = createWriteBy4Byte(buffer, address, element, size, fieldData, value);
           } else {
+            console.warn(`Unknow buffer type ${bufferType}. Return original node`);
             return node;
           }
+
+          console.log('transformedNode', transformedNode);
+
+
+          if (!transformedNode) {
+            console.warn(`Unable to transform node for ${fieldName} in sctruct ${structName} with buffer type ${bufferTypeName}. Return original node`);
+            return node;
+          }
+
+          return transformedNode;
         }
 
         if (calledFunctionName === 'loadEffectiveAddress') {
           const typeArguments = node.typeArguments!;
           const funcArguments = node.arguments;
-          const structTypeArg = typeArguments[0]!;
+          const structType = typeArguments[0]!;
 
-          const type = checker.getTypeAtLocation(structTypeArg);
-
+          const type = checker.getTypeAtLocation(structType);
           const structName = getInterfaceOrTypeAliesName(type as ts.ObjectType);
 
           console.log('readValueStruct Struct name', structName);
@@ -186,7 +167,6 @@ export function createTransformer (program: ts.Program) {
           const address = funcArguments[0]!;
           const element = funcArguments.length === 3 ? funcArguments[1]! : ts.factory.createNumericLiteral(0);
           const field = funcArguments.length === 3 ? funcArguments[2]! : funcArguments[1]!;
-
 
           const fieldName = (field as ts.StringLiteral).text;
           const fieldData = layout.get(fieldName);
