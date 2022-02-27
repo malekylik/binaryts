@@ -28,8 +28,7 @@ export function createTransformer (program: ts.Program) {
 
           console.log('Struct name', structName, properties);
 
-          // TODO: check when symbol.valueDeclaration can be undefined
-          const { size } = calcLayout(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!));
+          const { size } = calcLayout(properties, checker);
 
           console.log('total size', size);
 
@@ -53,8 +52,7 @@ export function createTransformer (program: ts.Program) {
 
           const properties = checker.getPropertiesOfType(type);
 
-          // TODO: check when symbol.valueDeclaration can be undefined
-          const { layout, size } = calcLayout(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!));
+          const { layout, size } = calcLayout(properties, checker);
 
           const fieldName = (field as ts.StringLiteral).text;
           const fieldData = layout.get(fieldName);
@@ -110,7 +108,7 @@ export function createTransformer (program: ts.Program) {
 
           const properties = checker.getPropertiesOfType(type);
 
-          const { layout, size } = calcLayout(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!));
+          const { layout, size } = calcLayout(properties, checker);
 
           const fieldName = (field as ts.StringLiteral)?.text;
           const fieldData = layout.get(fieldName);
@@ -161,8 +159,7 @@ export function createTransformer (program: ts.Program) {
 
           const properties = checker.getPropertiesOfType(type);
 
-          // TODO: check when symbol.valueDeclaration can be undefined
-          const { layout, size } = calcLayout(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!));
+          const { layout, size } = calcLayout(properties, checker);
 
           const address = funcArguments[0]!;
           const element = funcArguments.length === 3 ? funcArguments[1]! : ts.factory.createNumericLiteral(0);

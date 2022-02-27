@@ -14,7 +14,9 @@ export type Float32 = number & { readonly __tag: unique symbol };
 export type Int = Int8 | Int16 | Int32;
 export type Float = Float32;
 
-export type Struct = Record<string, Int | Float32>;
+export type Struct = {
+  [field: string]: Int | Float32 | Struct;
+};
 
 export declare function sizeof<T extends Struct>(): number;
 

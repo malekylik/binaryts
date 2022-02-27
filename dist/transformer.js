@@ -19,8 +19,7 @@ function createTransformer(program) {
                     const properties = checker.getPropertiesOfType(type);
                     const structName = (0, ast_1.getInterfaceOrTypeAliesName)(type);
                     console.log('Struct name', structName, properties);
-                    // TODO: check when symbol.valueDeclaration can be undefined
-                    const { size } = (0, layout_1.calcLayout)(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration));
+                    const { size } = (0, layout_1.calcLayout)(properties, checker);
                     console.log('total size', size);
                     return ts.factory.createNumericLiteral(size);
                 }
@@ -36,8 +35,7 @@ function createTransformer(program) {
                     const structName = (0, ast_1.getInterfaceOrTypeAliesName)(type);
                     console.log('readValue Struct name', structName);
                     const properties = checker.getPropertiesOfType(type);
-                    // TODO: check when symbol.valueDeclaration can be undefined
-                    const { layout, size } = (0, layout_1.calcLayout)(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration));
+                    const { layout, size } = (0, layout_1.calcLayout)(properties, checker);
                     const fieldName = field.text;
                     const fieldData = layout.get(fieldName);
                     if (!fieldData) {
@@ -83,7 +81,7 @@ function createTransformer(program) {
                     const structName = (0, ast_1.getInterfaceOrTypeAliesName)(type);
                     console.log('writeValue Struct name', structName);
                     const properties = checker.getPropertiesOfType(type);
-                    const { layout, size } = (0, layout_1.calcLayout)(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration));
+                    const { layout, size } = (0, layout_1.calcLayout)(properties, checker);
                     const fieldName = (_a = field) === null || _a === void 0 ? void 0 : _a.text;
                     const fieldData = layout.get(fieldName);
                     if (!fieldData) {
@@ -124,8 +122,7 @@ function createTransformer(program) {
                     const structName = (0, ast_1.getInterfaceOrTypeAliesName)(type);
                     console.log('readValueStruct Struct name', structName);
                     const properties = checker.getPropertiesOfType(type);
-                    // TODO: check when symbol.valueDeclaration can be undefined
-                    const { layout, size } = (0, layout_1.calcLayout)(properties, symbol => checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration));
+                    const { layout, size } = (0, layout_1.calcLayout)(properties, checker);
                     const address = funcArguments[0];
                     const element = funcArguments.length === 3 ? funcArguments[1] : ts.factory.createNumericLiteral(0);
                     const field = funcArguments.length === 3 ? funcArguments[2] : funcArguments[1];

@@ -29,7 +29,7 @@ const offsetAverWithZeroElement = loadEffectiveAddress<Table>(27, 0, 'aver'); //
 const offsetByteWithZeroBaseAndZeroElement = loadEffectiveAddress<Table>(0, 0, 'byte'); // 0
 const offsetXWithZeroBaseAndZeroElement = loadEffectiveAddress<Table>(0, 0, 'x'); // 4
 const offsetYWithZeroBaseAndZeroElement = loadEffectiveAddress<Table>(0, 0, 'y'); // 8
-const offsetPrevWithZeroBaseAndZeroElement = loadEffectiveAddress<Table>(0, 0, 'prev'); // 0
+const offsetPrevWithZeroBaseAndZeroElement = loadEffectiveAddress<Table>(0, 0, 'prev'); // 12
 const offsetCurrentWithZeroBaseAndZeroElement = loadEffectiveAddress<Table>(0, 0, 'current'); // 16
 const offsetAverWithZeroBaseAndZeroElement = loadEffectiveAddress<Table>(0, 0, 'aver'); // 20
 
