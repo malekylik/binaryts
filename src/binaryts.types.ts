@@ -20,25 +20,42 @@ export type Struct = {
 
 export declare function sizeof<T extends Struct>(): number;
 
-export declare function readValue<T extends Struct>(buffer: Float32Array, element: number, field: ExcludeInt<T>): number;
-export declare function writeValue<T extends Struct>(buffer: Float32Array, element: number, field: ExcludeInt<T>, value: number): void;
+export declare function readValue<T extends Struct>(buffer: Float32Array, base: number, field: ExcludeInt<T>): number; // address->field
+export declare function writeValue<T extends Struct>(buffer: Float32Array, base: number, field: ExcludeInt<T>, value: number): void;
 
-export declare function readValue<T extends Struct>(buffer: Int8Array, element: number, field: ExcludeFloat<T>): number;
-export declare function readValue<T extends Struct>(buffer: Uint8Array, element: number, field: ExcludeFloat<T>): number;
-export declare function readValue<T extends Struct>(buffer: Int16Array, element: number, field: ExcludeFloat<T>): number;
-export declare function readValue<T extends Struct>(buffer: Uint16Array, element: number, field: ExcludeFloat<T>): number;
-export declare function readValue<T extends Struct>(buffer: Int32Array, element: number, field: ExcludeFloat<T>): number;
-export declare function readValue<T extends Struct>(buffer: Uint32Array, element: number, field: ExcludeFloat<T>): number;
+export declare function readValue<T extends Struct>(buffer: Float32Array, base: number, element: number, field: ExcludeInt<T>): number; // (address + Strcuct * element)->field
+export declare function writeValue<T extends Struct>(buffer: Float32Array, base: number, element: number, field: ExcludeInt<T>, value: number): void;
 
-export declare function writeValue<T extends Struct>(buffer: Int8Array, element: number, field: ExcludeFloat<T>, value: number): void;
-export declare function writeValue<T extends Struct>(buffer: Uint8Array, element: number, field: ExcludeFloat<T>, value: number): void;
-export declare function writeValue<T extends Struct>(buffer: Int16Array, element: number, field: ExcludeFloat<T>, value: number): void;
-export declare function writeValue<T extends Struct>(buffer: Uint16Array, element: number, field: ExcludeFloat<T>, value: number): void;
-export declare function writeValue<T extends Struct>(buffer: Int32Array, element: number, field: ExcludeFloat<T>, value: number): void;
-export declare function writeValue<T extends Struct>(buffer: Uint32Array, element: number, field: ExcludeFloat<T>, value: number): void;
+export declare function readValue<T extends Struct>(buffer: Int8Array, base: number, field: ExcludeFloat<T>): number; // address->field
+export declare function readValue<T extends Struct>(buffer: Uint8Array, base: number, field: ExcludeFloat<T>): number;
+export declare function readValue<T extends Struct>(buffer: Int16Array, base: number, field: ExcludeFloat<T>): number;
+export declare function readValue<T extends Struct>(buffer: Uint16Array, base: number, field: ExcludeFloat<T>): number;
+export declare function readValue<T extends Struct>(buffer: Int32Array, base: number, field: ExcludeFloat<T>): number;
+export declare function readValue<T extends Struct>(buffer: Uint32Array, base: number, field: ExcludeFloat<T>): number;
 
-export declare function readValueStruct<T extends Struct>(buffer: Float32Array, base: number, field: ExcludeInt<T>): number; // address->field
-export declare function writeValueStruct<T extends Struct>(buffer: Float32Array, base: number, field: ExcludeInt<T>, value: number): void; // (address + Strcuct * element)->field
+export declare function writeValue<T extends Struct>(buffer: Int8Array, base: number, field: ExcludeFloat<T>, value: number): void;
+export declare function writeValue<T extends Struct>(buffer: Uint8Array, base: number, field: ExcludeFloat<T>, value: number): void;
+export declare function writeValue<T extends Struct>(buffer: Int16Array, base: number, field: ExcludeFloat<T>, value: number): void;
+export declare function writeValue<T extends Struct>(buffer: Uint16Array, base: number, field: ExcludeFloat<T>, value: number): void;
+export declare function writeValue<T extends Struct>(buffer: Int32Array, base: number, field: ExcludeFloat<T>, value: number): void;
+export declare function writeValue<T extends Struct>(buffer: Uint32Array, base: number, field: ExcludeFloat<T>, value: number): void;
+
+export declare function readValue<T extends Struct>(buffer: Int8Array, base: number, element: number, field: ExcludeFloat<T>): number; // (address + Strcuct * element)->field
+export declare function readValue<T extends Struct>(buffer: Uint8Array, base: number, element: number, field: ExcludeFloat<T>): number;
+export declare function readValue<T extends Struct>(buffer: Int16Array, base: number, element: number, field: ExcludeFloat<T>): number;
+export declare function readValue<T extends Struct>(buffer: Uint16Array, base: number, element: number, field: ExcludeFloat<T>): number;
+export declare function readValue<T extends Struct>(buffer: Int32Array, base: number, element: number, field: ExcludeFloat<T>): number;
+export declare function readValue<T extends Struct>(buffer: Uint32Array, base: number, element: number, field: ExcludeFloat<T>): number;
+
+export declare function writeValue<T extends Struct>(buffer: Int8Array, base: number, element: number, field: ExcludeFloat<T>, value: number): void;
+export declare function writeValue<T extends Struct>(buffer: Uint8Array, base: number, element: number, field: ExcludeFloat<T>, value: number): void;
+export declare function writeValue<T extends Struct>(buffer: Int16Array, base: number, element: number, field: ExcludeFloat<T>, value: number): void;
+export declare function writeValue<T extends Struct>(buffer: Uint16Array, base: number, element: number, field: ExcludeFloat<T>, value: number): void;
+export declare function writeValue<T extends Struct>(buffer: Int32Array, base: number, element: number, field: ExcludeFloat<T>, value: number): void;
+export declare function writeValue<T extends Struct>(buffer: Uint32Array, base: number, element: number, field: ExcludeFloat<T>, value: number): void;
+
+export declare function readValueStruct<T extends Struct>(buffer: Float32Array, base: number, field: ExcludeInt<T>): number;
+export declare function writeValueStruct<T extends Struct>(buffer: Float32Array, base: number, field: ExcludeInt<T>, value: number): void;
 
 export declare function loadEffectiveAddress<T extends Struct>(base: number, field: keyof T): number; // Strcuct * element)->field
 export declare function loadEffectiveAddress<T extends Struct>(base: number, element: number, field: keyof T): number;

@@ -28,9 +28,9 @@ function createTransformer(program) {
                     const structType = typeArguments[0];
                     const funcArguments = node.arguments;
                     const buffer = funcArguments[0];
-                    const address = ts.factory.createNumericLiteral(0);
-                    const element = funcArguments[1];
-                    const field = funcArguments[2];
+                    const address = funcArguments[1];
+                    const element = funcArguments.length === 4 ? funcArguments[2] : ts.factory.createNumericLiteral(0);
+                    const field = funcArguments.length === 4 ? funcArguments[3] : funcArguments[2];
                     const type = checker.getTypeAtLocation(structType);
                     const structName = (0, ast_1.getInterfaceOrTypeAliesName)(type);
                     console.log('readValue Struct name', structName);
@@ -73,10 +73,10 @@ function createTransformer(program) {
                     const structType = typeArguments[0];
                     const funcArguments = node.arguments;
                     const buffer = funcArguments[0];
-                    const address = ts.factory.createNumericLiteral(0);
-                    const element = funcArguments[1];
-                    const field = funcArguments[2];
-                    const value = node.arguments[3];
+                    const address = funcArguments[1];
+                    const element = funcArguments.length === 5 ? funcArguments[2] : ts.factory.createNumericLiteral(0);
+                    const field = funcArguments.length === 5 ? funcArguments[3] : funcArguments[2];
+                    const value = funcArguments.length === 5 ? node.arguments[4] : node.arguments[3];
                     const type = checker.getTypeAtLocation(structType);
                     const structName = (0, ast_1.getInterfaceOrTypeAliesName)(type);
                     console.log('writeValue Struct name', structName);
