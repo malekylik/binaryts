@@ -134,6 +134,11 @@ function createTransformer(program) {
                     }
                     return (0, factory_1.createEffectAddress)(address, element, size, fieldData.offset);
                 }
+                if (calledFunctionName === 'toPointer') {
+                    const funcArguments = node.arguments;
+                    const address = funcArguments[0];
+                    return address;
+                }
             }
             return node;
         }
